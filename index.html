@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Funil de Incorporadoras</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232c6a4c'/%3E%3Crect x='7' y='9' width='5' height='14' rx='1.5' fill='%23fff'/%3E%3Crect x='13.5' y='9' width='5' height='10' rx='1.5' fill='%23fff'/%3E%3Crect x='20' y='9' width='5' height='6' rx='1.5' fill='%23fff'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" />
+  </head>
+  <body>
+    <!-- Tela de entrada: aparece enquanto ninguém está logado -->
+    <main class="login" id="login" hidden>
+      <form class="login-box" id="loginForm">
+        <h1>Funil de Incorporadoras</h1>
+        <p class="sub">Entre com o e-mail da Trilha.</p>
+        <label class="f">E-mail<input class="inp" id="loginEmail" type="email" autocomplete="username" required /></label>
+        <label class="f">Senha
+          <span class="senha-wrap">
+            <input class="inp" id="loginSenha" type="password" autocomplete="current-password" required />
+            <button class="olho" id="olhoSenha" type="button" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha"></button>
+          </span>
+        </label>
+        <p class="login-erro" id="loginErro" hidden></p>
+        <button class="btn primary" type="submit" id="loginBtn">Entrar</button>
+      </form>
+    </main>
+
+    <!-- CRM (igual ao artefato) -->
+    <div id="app" hidden>
+    <div class="wrap">
+      <header class="top">
+        <div>
+          <h1>Funil de Incorporadoras</h1>
+          <p class="sub">Estoque pronto em prospecção pela Trilha</p>
+        </div>
+        <div class="top-acts">
+          <button class="btn" id="btnSair" type="button">Sair</button>
+          <button class="btn primary" id="btnNew" type="button">+ Nova incorporadora</button>
+        </div>
+      </header>
+
+      <section class="stats" id="stats" aria-label="Resumo"></section>
+
+      <div class="filters">
+        <div class="chips" id="ufChips" role="group" aria-label="Filtrar por estado"></div>
+        <input class="search" id="q" type="search" placeholder="Buscar incorporadora ou empreendimento" aria-label="Buscar">
+        <button class="btn kit-btn" type="button" id="btnKit"><span class="kit-ico" aria-hidden="true"></span>Kit comercial</button>
+      </div>
+
+      <div id="stateBox" class="state"><strong>Carregando o funil…</strong>As incorporadoras aparecem aqui assim que os dados chegam.</div>
+      <div class="board-scroll" id="boardScroll" hidden><div class="board" id="board"></div></div>
+    </div>
+
+    <div class="scrim" id="scrim" hidden></div>
+    <aside class="drawer" id="drawer" hidden aria-label="Detalhes da incorporadora"></aside>
+
+    <aside class="drawer kit" id="kit" hidden aria-label="Kit comercial">
+      <div class="d-head kit-head">
+        <div class="kit-titles"><span class="eyebrow">Prospecção</span><span class="kit-title">Kit comercial</span></div>
+        <button class="x" type="button" id="kitClose" aria-label="Fechar">×</button>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" type="button" role="tab" data-tab="msg" aria-selected="true">Mensagens <span class="n" id="nMsg">0</span></button>
+        <button class="tab" type="button" role="tab" data-tab="mat" aria-selected="false">Materiais <span class="n" id="nMat">0</span></button>
+      </div>
+      <div class="d-body">
+        <section id="pMsg" class="kpanel">
+          <div id="msgList" class="klist"></div>
+          <details class="addbox" id="msgAdd">
+            <summary id="msgSummary">+ Nova mensagem</summary>
+            <form id="msgForm" class="addform">
+              <label class="f">Título<input class="inp" id="msgTitulo" placeholder="Ex.: Primeiro contato por WhatsApp" required></label>
+              <label class="f">Mensagem<textarea class="inp" id="msgTexto" rows="7" placeholder="Olá, [nome]! Aqui é o Matheus, da Trilha..." required></textarea></label>
+              <div class="formacts"><button class="btn small" type="button" id="msgCancel">Cancelar</button><button class="btn primary small" type="submit" id="msgSave">Salvar mensagem</button></div>
+            </form>
+          </details>
+        </section>
+        <section id="pMat" class="kpanel" hidden>
+          <div id="matList" class="klist"></div>
+          <details class="addbox" id="matAdd">
+            <summary>+ Adicionar material</summary>
+            <div class="addform">
+              <div class="seg" role="group" aria-label="Tipo de material">
+                <button type="button" class="segb" data-mode="arquivo" aria-pressed="true">Arquivo</button>
+                <button type="button" class="segb" data-mode="link" aria-pressed="false">Link</button>
+              </div>
+              <form id="fileForm" class="subform">
+                <label class="f">Arquivo<input class="inp" id="matFile" type="file" accept=".pdf,application/pdf,image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm"></label>
+                <label class="f">Nome (opcional)<input class="inp" id="matFileNome" placeholder="Usa o nome do arquivo se ficar vazio"></label>
+                <p class="hint">PDF, imagem ou vídeo (MP4/WebM), até 20 MB. PowerPoint, Word ou Excel: exporte em PDF ou use um link.</p>
+                <div class="formacts"><button class="btn primary small" type="submit" id="fileSend">Enviar arquivo</button></div>
+              </form>
+              <p class="hint" id="noAssets" hidden>Envio de arquivos não está disponível nesta visualização. Use um link.</p>
+              <form id="linkForm" class="subform" hidden>
+                <label class="f">Nome<input class="inp" id="matLinkNome" placeholder="Ex.: Deck comercial (Canva)" required></label>
+                <label class="f">Link<input class="inp" id="matLinkUrl" placeholder="https://..." required inputmode="url"></label>
+                <div class="formacts"><button class="btn primary small" type="submit">Adicionar link</button></div>
+              </form>
+            </div>
+          </details>
+        </section>
+      </div>
+    </aside>
+
+    <dialog class="new" id="dlgNew">
+      <form id="formNew">
+        <h2 style="margin:0">Nova incorporadora</h2>
+        <label class="f">Nome<input class="inp" id="nNome" required></label>
+        <div class="row2">
+          <label class="f">Estado<select class="inp" id="nUf" required></select></label>
+          <label class="f">Etapa<select class="inp" id="nEtapa"></select></label>
+        </div>
+        <label class="f">Primeiro empreendimento (opcional)<input class="inp" id="nEmp" placeholder="Nome do empreendimento"></label>
+        <label class="f">Cidade<input class="inp" id="nCid"></label>
+        <div class="row2 even">
+          <label class="f">Total de unidades<input class="inp num" id="nTot" type="number" min="0" inputmode="numeric"></label>
+          <label class="f">Unidades em estoque<input class="inp num" id="nEst" type="number" min="0" inputmode="numeric"></label>
+        </div>
+        <p class="hint">Dá para adicionar mais empreendimentos depois, dentro do card.</p>
+        <div class="acts"><button class="btn" type="button" id="nCancel">Cancelar</button><button class="btn primary" type="submit">Criar card</button></div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" hidden></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
