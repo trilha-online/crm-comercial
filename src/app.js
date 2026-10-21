@@ -11,6 +11,14 @@ const ETAPAS=[
   {id:"perdido",nome:"Perdido",cor:"var(--s-per)"}
 ];
 const ATIVAS=["mapeadas","contato","feito","reuniao","negociacao"];
+const MOTIVOS=[
+  {id:"sem_abertura",nome:"Não deu abertura",desc:"Não respondeu ou deu uma desculpa qualquer"},
+  {id:"socios",nome:"Travou na passagem para os sócios",desc:"Conversamos com o gerente, mas não avançou com os sócios"},
+  {id:"modelo",nome:"Não topou o modelo da Trilha",desc:"Entendeu a Trilha, mas não aceitou o formato (risco, caixa, jurídico, custo)"},
+  {id:"outro_jeito",nome:"Já resolve de outro jeito",desc:"Imobiliária parceira, venda própria ou outra estratégia"},
+  {id:"outro",nome:"Outro",desc:"Descreva no detalhe"}
+];
+const nomeMotivo=id=>(MOTIVOS.find(m=>m.id===id)||{nome:"Sem motivo"}).nome;
 const UFS=["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 const nomeEtapa=id=>(ETAPAS.find(e=>e.id===id)||ETAPAS[0]).nome;
 
@@ -69,17 +77,23 @@ function renderBoard(){
     const un=cs.reduce((a,d)=>a+estoqueDe(d),0);
     return `<section class="col" data-etapa="${et.id}" aria-label="${et.nome}">
       <div class="col-head"><div class="col-title"><span class="dot" style="background:${et.cor}"></span>${et.nome}<span class="count">${cs.length}</span></div>
-      <div class="col-units"><b>${fmt(un)}</b> unidades em estoque</div></div>
+      <div class="col-units"><b>${fmt(un)}</b> unidades em estoque</div>${et.id==="perdido"&&cs.length?resumoMotivos(cs):""}</div>
       <div class="cards">${cs.length?cs.map(cardHTML).join(""):`<div class="empty-col">Arraste um card para cá</div>`}</div></section>`;
   }).join("");
 }
 
+function resumoMotivos(cs){
+  const c={};cs.forEach(d=>{const k=d.perda?.motivo||"_";c[k]=(c[k]||0)+1});
+  const linhas=[...MOTIVOS.map(m=>m.id),"_"].filter(k=>c[k]).sort((a,b)=>c[b]-c[a]).map(k=>`<div><span>${k==="_"?"Sem motivo":nomeMotivo(k)}</span><b>${c[k]}</b></div>`);
+  return `<div class="col-motivos">${linhas.join("")}</div>`;
+}
 function cardHTML(d){
   const n=ultimaNota(d),emps=(d.empreendimentos||[]).length;
   const p=!!d.prioridade;
   return `<div class="card${p?" is-prio":""}" role="button" tabindex="0" draggable="${!readOnly}" data-id="${esc(d.id)}">
     <div class="card-top"><button class="prio" type="button" data-prio="${esc(d.id)}" aria-pressed="${p}" title="${p?"Tirar prioridade":"Marcar como prioridade"}" aria-label="${p?"Tirar prioridade":"Marcar como prioridade"}"></button><span class="card-name">${esc(d.nome)}</span><span class="uf">${esc(d.uf)}</span></div>
     <div class="card-meta"><span><span class="units">${fmt(estoqueDe(d))}</span> un.</span><span>${emps} empreend.</span></div>
+    ${d.etapa==="perdido"?`<span class="perda-chip${d.perda?.motivo?"":" vazio"}">${esc(nomeMotivo(d.perda?.motivo))}</span>`:""}
     ${n?`<div class="card-note"><time>${dataBR(n.data)}</time>${esc(n.texto)}</div>`:""}
   </div>`;
 }
@@ -97,10 +111,36 @@ async function salvar(d,msg){
   writing.set(id,p);return p;
 }
 
+let perdaResolve=null;
+function pedirMotivo(nome,atual){
+  $("#perdaNome").textContent=nome;
+  $("#perdaOpts").innerHTML='<legend class="sr">Motivo</legend>'+MOTIVOS.map(m=>`<label class="mot"><input type="radio" name="motivo" value="${m.id}" ${atual?.motivo===m.id?"checked":""} required><div><b>${m.nome}</b><span>${m.desc}</span></div></label>`).join("");
+  $("#perdaDet").value=atual?.detalhe||"";
+  $("#dlgPerda").showModal();
+  return new Promise(r=>perdaResolve=r);
+}
+function fecharPerda(v){const r=perdaResolve;perdaResolve=null;if($("#dlgPerda").open)$("#dlgPerda").close();if(r)r(v)}
+$("#perdaCancel").onclick=()=>fecharPerda(null);
+$("#dlgPerda").addEventListener("cancel",e=>{e.preventDefault();fecharPerda(null)});
+$("#formPerda").addEventListener("submit",e=>{
+  e.preventDefault();
+  const m=$("#formPerda").querySelector("input[name=motivo]:checked");if(!m)return;
+  const det=$("#perdaDet").value.trim();
+  if(m.value==="outro"&&!det){$("#perdaDet").focus();toast("Descreva o motivo no detalhe.",true);return}
+  fecharPerda({motivo:m.value,detalhe:det,data:hojeISO()});
+});
+
 async function moverEtapa(id,etapa){
   const d=docs.get(id);if(!d||d.etapa===etapa)return;
-  const h=[...(d.historico||[]),{data:hojeISO(),texto:`Movida de “${nomeEtapa(d.etapa)}” para “${nomeEtapa(etapa)}”`,auto:true}];
-  await salvar({...d,etapa,historico:h},`Movida para ${nomeEtapa(etapa)}`);
+  let novo={...d,etapa};
+  let texto=`Movida de “${nomeEtapa(d.etapa)}” para “${nomeEtapa(etapa)}”`;
+  if(etapa==="perdido"){
+    const p=await pedirMotivo(d.nome,d.perda);
+    if(!p){renderBoard();if(aberto===id)renderDrawer(false);return}
+    novo.perda=p;texto+=` · Motivo: ${nomeMotivo(p.motivo)}${p.detalhe?` (${p.detalhe})`:""}`;
+  }else delete novo.perda;
+  novo.historico=[...(d.historico||[]),{data:hojeISO(),texto,auto:true}];
+  await salvar(novo,`Movida para ${nomeEtapa(etapa)}`);
 }
 
 /* drag & drop */
@@ -134,6 +174,11 @@ function renderDrawer(focus){
         <label class="f">Estado<select class="inp" id="dUf">${UFS.map(u=>`<option ${u===d.uf?"selected":""}>${u}</option>`).join("")}</select></label>
         <label class="f">Etapa<select class="inp" id="dEtapa">${ETAPAS.map(e=>`<option value="${e.id}" ${e.id===d.etapa?"selected":""}>${e.nome}</option>`).join("")}</select></label>
       </div>
+      ${d.etapa==="perdido"?`<section class="perda-box">
+        <h2>Motivo da perda</h2>
+        <label class="f">Motivo<select class="inp" id="dMotivo">${d.perda?.motivo?"":`<option value="" selected>Escolha o motivo</option>`}${MOTIVOS.map(m=>`<option value="${m.id}" ${d.perda?.motivo===m.id?"selected":""}>${m.nome}</option>`).join("")}</select></label>
+        <label class="f">Detalhe<textarea class="inp" id="dMotDet" rows="2" placeholder="O que a incorporadora disse?">${esc(d.perda?.detalhe||"")}</textarea></label>
+      </section>`:""}
       <section>
         <h2>Histórico <span class="aside">${hist.filter(n=>!n.auto).length} notas</span></h2>
         <div class="newnote">
@@ -168,6 +213,14 @@ function renderDrawer(focus){
   dr.querySelector("#dNome").onchange=e=>{const v=e.target.value.trim();if(v&&v!==d.nome)salvar({...d,nome:v},"Nome atualizado");else e.target.value=d.nome};
   dr.querySelector("#dUf").onchange=e=>salvar({...d,uf:e.target.value},"Estado atualizado");
   dr.querySelector("#dEtapa").onchange=e=>moverEtapa(d.id,e.target.value);
+  const dm=dr.querySelector("#dMotivo");
+  if(dm){
+    const salvarPerda=(campo,valor,msg)=>{const cur=docs.get(d.id);if(!cur)return;const perda={...(cur.perda||{data:hojeISO()}),[campo]:valor};
+      const h=campo==="motivo"?[...(cur.historico||[]),{data:hojeISO(),texto:`Motivo da perda: ${nomeMotivo(valor)}`,auto:true}]:cur.historico;
+      salvar({...cur,perda,historico:h},msg)};
+    dm.onchange=e=>{if(e.target.value)salvarPerda("motivo",e.target.value,"Motivo atualizado")};
+    dr.querySelector("#dMotDet").onchange=e=>salvarPerda("detalhe",e.target.value.trim(),"Detalhe salvo");
+  }
   dr.querySelector("#noteAdd").onclick=()=>{
     const t=dr.querySelector("#noteTxt").value.trim();if(!t){dr.querySelector("#noteTxt").focus();return}
     const dt=dr.querySelector("#noteDate").value||hojeISO();
@@ -210,7 +263,7 @@ function renderDrawer(focus){
 
 /* nova */
 $("#nUf").innerHTML=UFS.map(u=>`<option ${u==="RS"?"selected":""}>${u}</option>`).join("");
-$("#nEtapa").innerHTML=ETAPAS.map(e=>`<option value="${e.id}">${e.nome}</option>`).join("");
+$("#nEtapa").innerHTML=ETAPAS.filter(e=>e.id!=="perdido").map(e=>`<option value="${e.id}">${e.nome}</option>`).join("");
 $("#btnNew").onclick=()=>{if(!db){toast("Os dados ainda não carregaram.",true);return}$("#formNew").reset();$("#nUf").value=ufFiltro!=="todos"?ufFiltro:"RS";$("#dlgNew").showModal();$("#nNome").focus()};
 $("#nCancel").onclick=()=>$("#dlgNew").close();
 $("#formNew").addEventListener("submit",e=>{

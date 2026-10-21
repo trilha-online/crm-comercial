@@ -124,6 +124,15 @@
       </form>
     </dialog>
 
+    <dialog class="new" id="dlgPerda">
+      <form id="formPerda">
+        <div><h2 style="margin:0">Motivo da perda</h2><p class="hint" id="perdaNome" style="margin:4px 0 0"></p></div>
+        <fieldset class="motivos" id="perdaOpts"><legend class="sr">Motivo</legend></fieldset>
+        <label class="f">Detalhe (opcional)<textarea class="inp" id="perdaDet" rows="3" placeholder="Ex.: Sócio disse que tem medo de inadimplência nas 24 parcelas."></textarea></label>
+        <div class="acts"><button class="btn" type="button" id="perdaCancel">Cancelar</button><button class="btn danger solid" type="submit">Marcar como perdido</button></div>
+      </form>
+    </dialog>
+
     <div class="toast" id="toast" hidden></div>
     </div>
 

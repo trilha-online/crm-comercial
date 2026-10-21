@@ -51,6 +51,8 @@ create table if not exists public.incorporadora (
   empreendimentos  jsonb not null default '[]'::jsonb check (jsonb_typeof(empreendimentos) = 'array'),
   -- [{data: "AAAA-MM-DD", texto, auto?}]
   historico        jsonb not null default '[]'::jsonb check (jsonb_typeof(historico) = 'array'),
+  -- {motivo, detalhe, data} quando a etapa é "perdido" (ver 03_motivo_perda.sql)
+  perda            jsonb check (perda is null or jsonb_typeof(perda) = 'object'),
   criado_em        timestamptz not null default now(),
   atualizado_em    timestamptz
 );

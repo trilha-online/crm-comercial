@@ -194,6 +194,20 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center}
 .segb[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 .btn:disabled{opacity:.6;cursor:progress}
 @media (max-width:560px){.kit-btn{margin-left:0}.msg-h{flex-direction:column}.mat{flex-wrap:wrap}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.motivos{border:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mot{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;background:var(--bg)}
+.mot:has(input:checked){border-color:var(--s-per);background:color-mix(in srgb,var(--s-per) 9%,var(--bg))}
+.mot input{margin-top:3px;accent-color:var(--s-per)}
+.mot b{display:block;font-weight:600}
+.mot span{font-size:12px;color:var(--muted)}
+.perda-chip{align-self:flex-start;font-size:11.5px;font-weight:600;color:var(--s-per);background:color-mix(in srgb,var(--s-per) 12%,transparent);border-radius:4px;padding:2px 7px}
+.perda-chip.vazio{color:var(--muted);background:var(--sunk)}
+.col-motivos{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12px;color:var(--muted)}
+.col-motivos div{display:flex;justify-content:space-between;gap:8px}
+.col-motivos b{font-family:var(--f-mono);font-weight:500;color:var(--fg)}
+.perda-box{border:1px solid color-mix(in srgb,var(--s-per) 45%,var(--line));border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:color-mix(in srgb,var(--s-per) 6%,var(--surface))}
+.perda-box h2{margin:0;color:var(--s-per)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-weight:600;z-index:40;font-size:13px;max-width:calc(100% - 32px)}
 .toast.err{background:var(--danger);color:#fff}
 dialog.new{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);padding:0;width:min(440px,calc(100% - 32px))}
