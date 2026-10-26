@@ -220,6 +220,9 @@ dialog.new .acts{display:flex;justify-content:flex-end;gap:8px}
 
 /* ---- Acrescentado para o sistema próprio: botões do topo e tela de entrada ---- */
 .top-acts{display:flex;gap:8px;flex-wrap:wrap}
+.col-nome{border:none;background:transparent;font:inherit;font-weight:600;color:inherit;padding:1px 5px;margin:-1px -5px;border-radius:5px;cursor:text;text-align:left;min-width:0;overflow-wrap:anywhere}
+.col-nome:hover{background:var(--surface)}
+.col-nome-inp{flex:1;min-width:0;font:inherit;font-weight:600;color:var(--fg);background:var(--surface);border:1px solid var(--accent);border-radius:5px;padding:1px 5px;margin:-2px -6px -2px -6px}
 .login{min-height:100%;display:grid;place-items:center;padding:24px 16px;box-sizing:border-box}
 .login-box{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:24px;display:flex;flex-direction:column;gap:14px}
 .login-box h1{font-size:24px}

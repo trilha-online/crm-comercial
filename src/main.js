@@ -23,8 +23,9 @@ async function abrirCrm() {
     return;
   }
   iniciado = true;
-  const { db, assets } = await import("./dados.js");
-  window.crm = { use: async (nome) => (nome === "db" ? db : nome === "assets" ? assets : null) };
+  const { db, assets, etapas } = await import("./dados.js");
+  const servicos = { db, assets, etapas };
+  window.crm = { use: async (nome) => servicos[nome] ?? null };
   $("#login").hidden = true;
   $("#app").hidden = false;
   await import("./app.js");

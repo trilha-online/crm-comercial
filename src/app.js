@@ -50,8 +50,8 @@ function renderStats(lista){
   const neg=lista.filter(d=>d.etapa==="negociacao"||d.etapa==="reuniao");
   $("#stats").innerHTML=`
     <div class="stat lead"><span class="k">Unidades em prospecção</span><span class="v">${fmt(uAtivas)}<small>de ${fmt(ativos.length)} incorporadoras</small></span></div>
-    <div class="stat"><span class="k">Em reunião ou negociação</span><span class="v">${fmt(neg.reduce((a,d)=>a+estoqueDe(d),0))}<small>un. · ${neg.length} inc.</small></span></div>
-    <div class="stat"><span class="k">Fechado</span><span class="v">${fmt(fech.reduce((a,d)=>a+estoqueDe(d),0))}<small>un. · ${fech.length} inc.</small></span></div>`;
+    <div class="stat"><span class="k">${esc(nomeEtapa("reuniao"))} ou ${esc(nomeEtapa("negociacao"))}</span><span class="v">${fmt(neg.reduce((a,d)=>a+estoqueDe(d),0))}<small>un. · ${neg.length} inc.</small></span></div>
+    <div class="stat"><span class="k">${esc(nomeEtapa("fechado"))}</span><span class="v">${fmt(fech.reduce((a,d)=>a+estoqueDe(d),0))}<small>un. · ${fech.length} inc.</small></span></div>`;
 }
 
 function renderChips(){
@@ -65,6 +65,7 @@ function renderChips(){
 function ultimaNota(d){const h=(d.historico||[]).filter(n=>!n.auto);return h.length?h[h.length-1]:null}
 
 function renderBoard(){
+  if(editandoColuna)return;
   renderChips();
   const lista=filtrados();
   renderStats(lista);
@@ -76,7 +77,7 @@ function renderBoard(){
     const cs=lista.filter(d=>d.etapa===et.id).sort((a,b)=>(!!b.prioridade-!!a.prioridade)||estoqueDe(b)-estoqueDe(a)||a.nome.localeCompare(b.nome));
     const un=cs.reduce((a,d)=>a+estoqueDe(d),0);
     return `<section class="col" data-etapa="${et.id}" aria-label="${et.nome}">
-      <div class="col-head"><div class="col-title"><span class="dot" style="background:${et.cor}"></span>${et.nome}<span class="count">${cs.length}</span></div>
+      <div class="col-head"><div class="col-title"><span class="dot" style="background:${et.cor}"></span><button class="col-nome" type="button" data-renomear="${et.id}" title="Clique para renomear">${esc(et.nome)}</button><span class="count">${cs.length}</span></div>
       <div class="col-units"><b>${fmt(un)}</b> unidades em estoque</div>${et.id==="perdido"&&cs.length?resumoMotivos(cs):""}</div>
       <div class="cards">${cs.length?cs.map(cardHTML).join(""):`<div class="empty-col">Arraste um card para cá</div>`}</div></section>`;
   }).join("");
@@ -150,10 +151,34 @@ $("#board").addEventListener("dragover",e=>{const col=e.target.closest(".col");i
 $("#board").addEventListener("dragleave",e=>{const col=e.target.closest(".col");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over")});
 $("#board").addEventListener("drop",e=>{const col=e.target.closest(".col");if(!col)return;e.preventDefault();col.classList.remove("over");const id=e.dataTransfer.getData("text/plain");if(id)moverEtapa(id,col.dataset.etapa)});
 function alternarPrio(id){const d=docs.get(id);if(!d)return;const p=!d.prioridade;salvar({...d,prioridade:p},p?"Marcada como prioridade":"Prioridade removida")}
-$("#board").addEventListener("click",e=>{const pb=e.target.closest(".prio");if(pb){e.stopPropagation();alternarPrio(pb.dataset.prio);return}const c=e.target.closest(".card");if(c)abrir(c.dataset.id)});
+$("#board").addEventListener("click",e=>{const rn=e.target.closest("[data-renomear]");if(rn){editarNomeColuna(rn);return}const pb=e.target.closest(".prio");if(pb){e.stopPropagation();alternarPrio(pb.dataset.prio);return}const c=e.target.closest(".card");if(c)abrir(c.dataset.id)});
 $("#board").addEventListener("keydown",e=>{if(e.target.closest(".prio"))return;const c=e.target.closest(".card");if(c&&(e.key==="Enter"||e.key===" ")){e.preventDefault();abrir(c.dataset.id)}});
 $("#ufChips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;ufFiltro=b.dataset.uf;try{localStorage.setItem("crm-uf",ufFiltro)}catch(_){};renderBoard()});
 $("#q").addEventListener("input",e=>{busca=e.target.value;renderBoard()});
+
+/* renomear coluna (só no sistema próprio): clicar no nome, Enter salva, Esc cancela */
+let editandoColuna=false, etapasSrv=null;
+function editarNomeColuna(btn){
+  if(!etapasSrv){toast("Não dá para renomear agora. Recarregue a página.",true);return}
+  const id=btn.dataset.renomear,atual=nomeEtapa(id);
+  const inp=document.createElement("input");
+  inp.className="col-nome-inp";inp.value=atual;inp.maxLength=40;inp.setAttribute("aria-label","Nome da coluna");
+  btn.replaceWith(inp);inp.focus();inp.select();
+  editandoColuna=true;
+  let feito=false;
+  const terminar=async salvarNome=>{
+    if(feito)return;feito=true;editandoColuna=false;
+    const novo=inp.value.trim();
+    if(!salvarNome||novo===atual){renderBoard();return}
+    if(!novo){toast("O nome da coluna não pode ficar vazio.",true);renderBoard();return}
+    if(ETAPAS.some(e=>e.id!==id&&e.nome.trim().toLowerCase()===novo.toLowerCase())){toast("Já existe uma coluna com esse nome.",true);renderBoard();return}
+    const et=ETAPAS.find(e=>e.id===id);et.nome=novo;preencherNovaEtapa();renderBoard();
+    try{await etapasSrv.renomear(id,novo);toast("Coluna renomeada")}
+    catch(err){et.nome=atual;preencherNovaEtapa();renderBoard();toast(err.code==="duplicado"?"Já existe uma coluna com esse nome.":err.code==="invalido"?"O nome precisa ter de 1 a 40 caracteres.":"Não renomeou. Tente de novo.",true)}
+  };
+  inp.addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();terminar(true)}else if(ev.key==="Escape"){ev.preventDefault();ev.stopPropagation();terminar(false)}});
+  inp.addEventListener("blur",()=>terminar(true));
+}
 
 /* gaveta */
 function abrir(id){aberto=id;$("#scrim").hidden=false;$("#drawer").hidden=false;renderDrawer(true)}
@@ -172,7 +197,7 @@ function renderDrawer(focus){
     <div class="d-body">
       <div class="row2">
         <label class="f">Estado<select class="inp" id="dUf">${UFS.map(u=>`<option ${u===d.uf?"selected":""}>${u}</option>`).join("")}</select></label>
-        <label class="f">Etapa<select class="inp" id="dEtapa">${ETAPAS.map(e=>`<option value="${e.id}" ${e.id===d.etapa?"selected":""}>${e.nome}</option>`).join("")}</select></label>
+        <label class="f">Etapa<select class="inp" id="dEtapa">${ETAPAS.map(e=>`<option value="${e.id}" ${e.id===d.etapa?"selected":""}>${esc(e.nome)}</option>`).join("")}</select></label>
       </div>
       ${d.etapa==="perdido"?`<section class="perda-box">
         <h2>Motivo da perda</h2>
@@ -263,7 +288,8 @@ function renderDrawer(focus){
 
 /* nova */
 $("#nUf").innerHTML=UFS.map(u=>`<option ${u==="RS"?"selected":""}>${u}</option>`).join("");
-$("#nEtapa").innerHTML=ETAPAS.filter(e=>e.id!=="perdido").map(e=>`<option value="${e.id}">${e.nome}</option>`).join("");
+function preencherNovaEtapa(){const v=$("#nEtapa").value;$("#nEtapa").innerHTML=ETAPAS.filter(e=>e.id!=="perdido").map(e=>`<option value="${e.id}">${esc(e.nome)}</option>`).join("");if(v)$("#nEtapa").value=v}
+preencherNovaEtapa();
 $("#btnNew").onclick=()=>{if(!db){toast("Os dados ainda não carregaram.",true);return}$("#formNew").reset();$("#nUf").value=ufFiltro!=="todos"?ufFiltro:"RS";$("#dlgNew").showModal();$("#nNome").focus()};
 $("#nCancel").onclick=()=>$("#dlgNew").close();
 $("#formNew").addEventListener("submit",e=>{
@@ -421,6 +447,15 @@ renderBoard();
   if(!db){loaded=true;renderBoard();return}
   iniciarKit();
   (async()=>{try{assets=await window.crm?.use?.("assets")}catch(_){assets=null}atualizarModo()})();
+  try{etapasSrv=await window.crm?.use?.("etapas")}catch(_){etapasSrv=null}
+  await new Promise(pronto=>{
+    db.collection("etapas").onSnapshot(s=>{
+      s.docs.forEach(d=>{const v=d.data(),et=ETAPAS.find(e=>e.id===d.id);if(et&&v&&v.nome)et.nome=v.nome});
+      preencherNovaEtapa();
+      if(loaded){renderBoard();if(aberto){const ae=document.activeElement;if(!(ae&&$("#drawer").contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)))renderDrawer(false)}}
+      pronto();
+    },()=>pronto()); // sem a tabela de colunas, segue com os nomes padrão
+  });
   db.collection("incorporadoras").onSnapshot(snap=>{
     const m=new Map();
     snap.docs.forEach(s=>{const v=s.data();if(v)m.set(s.id,{...v,id:s.id,uf:v.uf||"—",etapa:ETAPAS.some(e=>e.id===v.etapa)?v.etapa:"mapeadas"})});

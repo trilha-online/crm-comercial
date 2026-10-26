@@ -70,6 +70,15 @@ const COLECOES = {
         criadoEm: r.criado_em,
       }),
   },
+  // Nomes das colunas do kanban. Só leitura por aqui: renomear passa por
+  // etapas.renomear(), que também reescreve o histórico no banco.
+  etapas: {
+    tabela: "etapa",
+    paraLinha: () => {
+      throw new Error("Use etapas.renomear()");
+    },
+    deLinha: (r) => ({ nome: r.nome, ordem: r.ordem }),
+  },
 };
 
 // Traduz erros do Supabase para os códigos que a tela já sabe mostrar.
@@ -199,6 +208,22 @@ export const db = {
         return () => l.ouvintes.delete(o);
       },
     };
+  },
+};
+
+export const etapas = {
+  // Troca o nome da coluna e, no mesmo passo, o histórico dos cards (função no banco).
+  async renomear(id, nome) {
+    const { error } = await supabase.rpc("renomear_etapa", { p_id: id, p_nome: nome });
+    if (error) {
+      const e = new Error(error.message);
+      e.code = error.code === "23505" ? "duplicado" : error.code === "22023" ? "invalido" : error.code || "unknown";
+      throw e;
+    }
+    // O histórico mudou em vários cards: recarrega para a gaveta já mostrar o nome novo.
+    await Promise.all(
+      ["etapas", "incorporadoras"].map((n) => lojas.get(n)?.carregou && lojas.get(n).carregar())
+    );
   },
 };
 
